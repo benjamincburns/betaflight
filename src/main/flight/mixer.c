@@ -123,8 +123,8 @@ PG_REGISTER_ARRAY(motorMixer_t, MAX_SUPPORTED_MOTORS, customMotorMixer, PG_MOTOR
 static uint8_t motorCount;
 static float motorMixRange;
 
-int16_t motor[MAX_SUPPORTED_MOTORS];
-int16_t motor_disarmed[MAX_SUPPORTED_MOTORS];
+float motor[MAX_SUPPORTED_MOTORS];
+float motor_disarmed[MAX_SUPPORTED_MOTORS];
 
 mixerMode_e currentMixerMode;
 static motorMixer_t currentMixer[MAX_SUPPORTED_MOTORS];
@@ -321,8 +321,8 @@ const mixer_t mixers[] = {
 };
 #endif // !USE_QUAD_MIXER_ONLY
 
-static uint16_t disarmMotorOutput, deadbandMotor3dHigh, deadbandMotor3dLow;
-uint16_t motorOutputHigh, motorOutputLow;
+static float disarmMotorOutput, deadbandMotor3dHigh, deadbandMotor3dLow;
+float motorOutputHigh, motorOutputLow;
 static float rcCommandThrottleRange, rcCommandThrottleRange3dLow, rcCommandThrottleRange3dHigh;
 
 uint8_t getMotorCount()
@@ -361,17 +361,18 @@ bool isMotorProtocolDshot(void) {
 #endif
 }
 
-// Add here scaled ESC outputs for digital protol
+// All PWM motor scaling is done to standard PWM range of 1000-2000 for easier tick conversion with legacy code / configurator
+// DSHOT scaling is done to the actual dshot range
 void initEscEndpoints(void) {
 #ifdef USE_DSHOT
     if (isMotorProtocolDshot()) {
         disarmMotorOutput = DSHOT_DISARM_COMMAND;
         if (feature(FEATURE_3D))
-            motorOutputLow = DSHOT_MIN_THROTTLE + lrintf(((DSHOT_3D_DEADBAND_LOW - DSHOT_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig()->digitalIdleOffsetValue));
+            motorOutputLow = DSHOT_MIN_THROTTLE + ((DSHOT_3D_DEADBAND_LOW - DSHOT_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig()->digitalIdleOffsetValue);
         else
-            motorOutputLow = DSHOT_MIN_THROTTLE + lrintf(((DSHOT_MAX_THROTTLE - DSHOT_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig()->digitalIdleOffsetValue));
+            motorOutputLow = DSHOT_MIN_THROTTLE + ((DSHOT_MAX_THROTTLE - DSHOT_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig()->digitalIdleOffsetValue);
         motorOutputHigh = DSHOT_MAX_THROTTLE;
-        deadbandMotor3dHigh = DSHOT_3D_DEADBAND_HIGH + lrintf(((DSHOT_MAX_THROTTLE - DSHOT_3D_DEADBAND_HIGH) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig()->digitalIdleOffsetValue)); // TODO - Not working yet !! Mixer requires some throttle rescaling changes
+        deadbandMotor3dHigh = DSHOT_3D_DEADBAND_HIGH + ((DSHOT_MAX_THROTTLE - DSHOT_3D_DEADBAND_HIGH) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig()->digitalIdleOffsetValue); // TODO - Not working yet !! Mixer requires some throttle rescaling changes
         deadbandMotor3dLow = DSHOT_3D_DEADBAND_LOW;
     } else
 #endif
@@ -518,7 +519,7 @@ void mixTable(pidProfile_t *pidProfile)
     // Scale roll/pitch/yaw uniformly to fit within throttle range
     // Initial mixer concept by bdoiron74 reused and optimized for Air Mode
     float throttle = 0, currentThrottleInputRange = 0;
-    uint16_t motorOutputMin, motorOutputMax;
+    float motorOutputMin, motorOutputMax;
     static uint16_t throttlePrevious = 0;   // Store the last throttle direction for deadband transitions
     bool mixerInversion = false;
 
@@ -614,7 +615,7 @@ void mixTable(pidProfile_t *pidProfile)
     // Now add in the desired throttle, but keep in a range that doesn't clip adjusted
     // roll/pitch/yaw. This could move throttle down, but also up for those low throttle flips.
     for (uint32_t i = 0; i < motorCount; i++) {
-        float motorOutput = motorOutputMin + lrintf(motorOutputRange * (motorMix[i] + (throttle * currentMixer[i].throttle)));
+        float motorOutput = motorOutputMin + motorOutputRange * (motorMix[i] + (throttle * currentMixer[i].throttle));
 
         // Dshot works exactly opposite in lower 3D section.
         if (mixerInversion) {
@@ -648,7 +649,7 @@ void mixTable(pidProfile_t *pidProfile)
     }
 }
 
-uint16_t convertExternalToMotor(uint16_t externalValue)
+float convertExternalToMotor(uint16_t externalValue)
 {
     uint16_t motorValue = externalValue;
 #ifdef USE_DSHOT
@@ -667,12 +668,12 @@ uint16_t convertExternalToMotor(uint16_t externalValue)
     }
 #endif
 
-    return motorValue;
+    return (float)motorValue;
 }
 
-uint16_t convertMotorToExternal(uint16_t motorValue)
+uint16_t convertMotorToExternal(float motorValue)
 {
-    uint16_t externalValue = motorValue;
+    uint16_t externalValue = lrintf(motorValue);
 #ifdef USE_DSHOT
     if (isMotorProtocolDshot()) {
         if (feature(FEATURE_3D) && motorValue >= DSHOT_MIN_THROTTLE && motorValue <= DSHOT_3D_DEADBAND_LOW) {
