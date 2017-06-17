@@ -318,6 +318,7 @@ const mixer_t mixers[] = {
     { 2, true,  NULL },                // MIXER_CUSTOM_AIRPLANE
     { 3, true,  NULL },                // MIXER_CUSTOM_TRI
     { 4, false, mixerQuadX1234 },
+    { 0, true,  NULL },                // * MIXER_STEWART_PLATFORM
 };
 #endif
 

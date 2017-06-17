@@ -148,6 +148,15 @@ static const servoMixer_t servoMixerGimbal[] = {
     { SERVO_GIMBAL_ROLL, INPUT_GIMBAL_ROLL,  125, 0, 0, 100, 0 },
 };
 
+static const servoMixer_t servoMixerStewartPlatform[] = {
+    { SERVO_STEWART_PLATFORM_1, INPUT_STEWART_PLATFORM_1, 125, 0, 0, 100, 0 },
+    { SERVO_STEWART_PLATFORM_2, INPUT_STEWART_PLATFORM_2, 125, 0, 0, 100, 0 },
+    { SERVO_STEWART_PLATFORM_3, INPUT_STEWART_PLATFORM_3, 125, 0, 0, 100, 0 },
+    { SERVO_STEWART_PLATFORM_4, INPUT_STEWART_PLATFORM_4, 125, 0, 0, 100, 0 },
+    { SERVO_STEWART_PLATFORM_5, INPUT_STEWART_PLATFORM_5, 125, 0, 0, 100, 0 },
+    { SERVO_STEWART_PLATFORM_6, INPUT_STEWART_PLATFORM_6, 125, 0, 0, 100, 0 },
+};
+
 
 // Custom mixer configuration
 typedef struct mixerRules_s {
@@ -157,32 +166,33 @@ typedef struct mixerRules_s {
 
 const mixerRules_t servoMixers[] = {
     { 0, NULL },                // entry 0
-    { COUNT_SERVO_RULES(servoMixerTri), servoMixerTri },       // MULTITYPE_TRI
-    { 0, NULL },                // MULTITYPE_QUADP
-    { 0, NULL },                // MULTITYPE_QUADX
-    { COUNT_SERVO_RULES(servoMixerBI), servoMixerBI },        // MULTITYPE_BI
-    { COUNT_SERVO_RULES(servoMixerGimbal), servoMixerGimbal },    // * MULTITYPE_GIMBAL
-    { 0, NULL },                // MULTITYPE_Y6
-    { 0, NULL },                // MULTITYPE_HEX6
-    { COUNT_SERVO_RULES(servoMixerFlyingWing), servoMixerFlyingWing },// * MULTITYPE_FLYING_WING
-    { 0, NULL },                // MULTITYPE_Y4
-    { 0, NULL },                // MULTITYPE_HEX6X
-    { 0, NULL },                // MULTITYPE_OCTOX8
-    { 0, NULL },                // MULTITYPE_OCTOFLATP
-    { 0, NULL },                // MULTITYPE_OCTOFLATX
-    { COUNT_SERVO_RULES(servoMixerAirplane), servoMixerAirplane },  // * MULTITYPE_AIRPLANE
-    { 0, NULL },                // * MULTITYPE_HELI_120_CCPM
-    { 0, NULL },                // * MULTITYPE_HELI_90_DEG
-    { 0, NULL },                // MULTITYPE_VTAIL4
-    { 0, NULL },                // MULTITYPE_HEX6H
-    { 0, NULL },                // * MULTITYPE_PPM_TO_SERVO
-    { COUNT_SERVO_RULES(servoMixerDual), servoMixerDual },      // MULTITYPE_DUALCOPTER
-    { COUNT_SERVO_RULES(servoMixerSingle), servoMixerSingle },    // MULTITYPE_SINGLECOPTER
-    { 0, NULL },                // MULTITYPE_ATAIL4
-    { 0, NULL },                // MULTITYPE_CUSTOM
-    { 0, NULL },                // MULTITYPE_CUSTOM_PLANE
-    { 0, NULL },                // MULTITYPE_CUSTOM_TRI
+    { COUNT_SERVO_RULES(servoMixerTri), servoMixerTri },       // MIXER_TRI
+    { 0, NULL },                // MIXER_QUADP
+    { 0, NULL },                // MIXER_QUADX
+    { COUNT_SERVO_RULES(servoMixerBI), servoMixerBI },        // MIXER_BI
+    { COUNT_SERVO_RULES(servoMixerGimbal), servoMixerGimbal },    // * MIXER_GIMBAL
+    { 0, NULL },                // MIXER_Y6
+    { 0, NULL },                // MIXER_HEX6
+    { COUNT_SERVO_RULES(servoMixerFlyingWing), servoMixerFlyingWing },// * MIXER_FLYING_WING
+    { 0, NULL },                // MIXER_Y4
+    { 0, NULL },                // MIXER_HEX6X
+    { 0, NULL },                // MIXER_OCTOX8
+    { 0, NULL },                // MIXER_OCTOFLATP
+    { 0, NULL },                // MIXER_OCTOFLATX
+    { COUNT_SERVO_RULES(servoMixerAirplane), servoMixerAirplane },  // * MIXER_AIRPLANE
+    { 0, NULL },                // * MIXER_HELI_120_CCPM
+    { 0, NULL },                // * MIXER_HELI_90_DEG
+    { 0, NULL },                // MIXER_VTAIL4
+    { 0, NULL },                // MIXER_HEX6H
+    { 0, NULL },                // * MIXER_PPM_TO_SERVO
+    { COUNT_SERVO_RULES(servoMixerDual), servoMixerDual },      // MIXER_DUALCOPTER
+    { COUNT_SERVO_RULES(servoMixerSingle), servoMixerSingle },    // MIXER_SINGLECOPTER
+    { 0, NULL },                // MIXER_ATAIL4
+    { 0, NULL },                // MIXER_CUSTOM
+    { 0, NULL },                // MIXER_CUSTOM_PLANE
+    { 0, NULL },                // MIXER_CUSTOM_TRI
     { 0, NULL },
+    { COUNT_SERVO_RULES(servoMixerStewartPlatform), servoMixerStewartPlatform },    // MIXER_STEWART_PLATFORM
 };
 
 int16_t determineServoMiddleOrForwardFromChannel(servoIndex_e servoIndex)
@@ -364,6 +374,19 @@ void writeServos(void)
     }
 }
 
+STATIC_UNIT_TESTED void calculateStewartPlatformInputs(int16_t* input) {
+    int16_t roll = input[INPUT_STABILIZED_ROLL]
+            pitch = input[INPUT_STABILIZED_PITCH],
+            yaw = input[INPUT_STABILIZED_YAW];
+
+    double beta[6];
+    int32_t servoHorPos[6];
+    float alpha[6]; 
+    float baseJoint[6][3], platformJoint[6][3], legLength[6][3];
+    float translation[3], rotation[3];
+
+}
+
 STATIC_UNIT_TESTED void servoMixer(void)
 {
     int16_t input[INPUT_SOURCE_COUNT]; // Range [-500:+500]
@@ -405,6 +428,8 @@ STATIC_UNIT_TESTED void servoMixer(void)
     input[INPUT_RC_AUX2]     = rcData[AUX2]     - rxConfig()->midrc;
     input[INPUT_RC_AUX3]     = rcData[AUX3]     - rxConfig()->midrc;
     input[INPUT_RC_AUX4]     = rcData[AUX4]     - rxConfig()->midrc;
+
+    calculateStewartPlatformInputs(&input);
 
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
         servo[i] = 0;
